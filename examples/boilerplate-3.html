@@ -81,7 +81,7 @@ var vrDisplay, vrControls, arView;
 var canvas, camera, scene, renderer;
 var BOX_DISTANCE = 2.5;
 var BOX_SIZE = 0.1;
-var BOX_QUANTITY = 6;
+var BOX_QUANTITY = 25;
 var BOX_YRANGE = 2;
 var boxesAdded = false;
 var boxes = [];
@@ -187,9 +187,20 @@ var animate = function () {
 	// cube.rotation.x += 0.1;
 	// cube.rotation.y += 0.1;
 
-  for(var e of boxes) {
+  var floor = camera.position.y - 2;
+
+  for(var i = 0; i < boxes.length; i++) {
+    var e = boxes[i];
     e.rotation.x +=.01;
     e.rotation.y +=.01;
+    e.position.y -=.01;
+    if (e.position.y < floor) {
+      boxes.splice(i, 1);
+      scene.remove(e);
+      var c = addSingleBox();
+      boxes.splice(i, 0, c);
+      scene.add(c);
+    }
   }
 
 	// renderer.render(scene, camera);
@@ -214,29 +225,29 @@ function onWindowResize () {
 function addBoxes () {
   // Create some cubes around the origin point
   for (var i = 0; i < BOX_QUANTITY; i++) {
-    var angle = Math.random() * Math.PI * 2;
-    var geometry = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
-    var material = new THREE.MeshNormalMaterial();
-    var cube = new THREE.Mesh(geometry, material);
-    cube.position.set(
-      Math.cos(angle) * Math.random() * BOX_DISTANCE,
-      camera.position.y - ((Math.random() - .5) * BOX_YRANGE),
-      Math.sin(angle) * Math.random() * BOX_DISTANCE
-    );
-    cube.rotation.x = Math.random() * 2 * Math.PI;
-		cube.rotation.y = Math.random() * 2 * Math.PI;
-    // cube.rotation.set(
-    //   Math.random() * Math.TWO_PI,
-    //   Math.random() * Math.TWO_PI,
-    //   Math.random() * Math.TWO_PI
-    // );
-    // cube.rotation.y = Math.random() * Math.TWO_PI;
-    boxes.push(cube);
-    scene.add(cube);
+    var c = addSingleBox();
+    boxes.push(c);
+    scene.add(c);
   }
 
   // Flip this switch so that we only perform this once
   boxesAdded = true;
+}
+
+function addSingleBox () {
+  var angle = Math.random() * Math.PI * 2;
+  var geometry = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
+  var material = new THREE.MeshNormalMaterial();
+  var cube = new THREE.Mesh(geometry, material);
+  cube.position.set(
+    Math.cos(angle) * Math.random() * BOX_DISTANCE,
+    camera.position.y + 1 - ((Math.random() - .5) * BOX_YRANGE),
+    // camera.position.y + 2,
+    Math.sin(angle) * Math.random() * BOX_DISTANCE
+  );
+  cube.rotation.x = Math.random() * 2 * Math.PI;
+  cube.rotation.y = Math.random() * 2 * Math.PI;
+  return cube;
 }
 
 function onClick() {
