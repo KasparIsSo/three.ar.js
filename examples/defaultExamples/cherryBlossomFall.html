@@ -65,7 +65,7 @@
 </head>
 <body>
 <div id="info">
-    <span class="title">Boilerplate scene</span><br/>
+    <span class="title">Cherry Blossoms</span><br/>
     <span class="links">
       <a href="https://github.com/google-ar/three.ar.js">three.ar.js</a> -
       <a href="https://developers.google.com/ar/develop/web/getting-started#examples">examples</a>
@@ -74,6 +74,8 @@
 </div>
 <script src="../third_party/three.js/three.js"></script>
 <script src="../third_party/three.js/VRControls.js"></script>
+<script src="../third_party/three.js/OBJLoader.js"></script>
+<script src="../third_party/three.js/MTLLoader.js"></script>
 <script src="../dist/three.ar.js"></script>
 <script>
 
@@ -81,10 +83,21 @@ var vrDisplay, vrControls, arView;
 var canvas, camera, scene, renderer;
 var BOX_DISTANCE = 2.5;
 var BOX_SIZE = 0.1;
-var BOX_QUANTITY = 25;
+var BOX_QUANTITY = 1;
 var BOX_YRANGE = 2;
 var boxesAdded = false;
 var boxes = [];
+
+var model;
+
+var shadowMesh;
+var planeGeometry;
+var light;
+var directionalLight;
+
+var OBJ_PATH = './assets/ArcticFox_Posed.obj';
+var MTL_PATH = './assets/ArcticFox_Posed.mtl';
+var SCALE = 0.04;
 
 /**
  * Use the `getARDisplay()` utility to leverage the WebVR API
@@ -102,6 +115,10 @@ THREE.ARUtils.getARDisplay().then(function (display) {
 });
 
 function init() {
+  // Turn on the debugging panel
+  var arDebug = new THREE.ARDebug(vrDisplay);
+  document.body.appendChild(arDebug.getElement());
+
   // Setup the three.js rendering environment
   renderer = new THREE.WebGLRenderer({ alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -133,6 +150,56 @@ function init() {
   // orientation/position to the perspective camera, keeping our
   // real world and virtual world in sync.
   vrControls = new THREE.VRControls(camera);
+
+  // For shadows to work
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  // The materials in Poly models will render as a black mesh
+  // without lights in our scenes. Let's add an ambient light
+  // so our model can be scene, as well as a directional light
+  // for the shadow
+  directionalLight = new THREE.DirectionalLight();
+  // @TODO in the future, use AR light estimation
+  directionalLight.intensity = 0.3;
+  directionalLight.position.set(10, 15, 10);
+  // We want this light to cast shadow
+  directionalLight.castShadow = true;
+  light = new THREE.AmbientLight();
+  scene.add(light);
+  scene.add(directionalLight);
+
+  // Make a large plane to receive our shadows
+  planeGeometry = new THREE.PlaneGeometry(2000, 2000);
+  // Rotate our plane to be parallel to the floor
+  planeGeometry.rotateX(-Math.PI / 2);
+
+  // Create a mesh with a shadow material, resulting in a mesh
+  // that only renders shadows once we flip the `receiveShadow` property
+  shadowMesh = new THREE.Mesh(planeGeometry, new THREE.ShadowMaterial({
+    color: 0x111111,
+    opacity: 0.15,
+  }));
+  shadowMesh.receiveShadow = true;
+  scene.add(shadowMesh);
+
+  THREE.ARUtils.loadModel({
+    objPath: OBJ_PATH,
+    mtlPath: MTL_PATH,
+    OBJLoader: undefined, // uses window.THREE.OBJLoader by default
+    MTLLoader: undefined, // uses window.THREE.MTLLoader by default
+  }).then(function(group) {
+    model = group;
+    // As OBJ models may contain a group with several meshes,
+    // we want all of them to cast shadow
+    model.children.forEach(function(mesh) { mesh.castShadow = true; });
+
+    model.scale.set(SCALE, SCALE, SCALE);
+
+    // Place the model very far to initialize
+    model.position.set(0, 0, 0);
+    // scene.add(model);
+  });
 
   // Bind our event handlers
   window.addEventListener('resize', onWindowResize, false);
@@ -236,15 +303,20 @@ function addBoxes () {
 
 function addSingleBox () {
   var angle = Math.random() * Math.PI * 2;
-  var geometry = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
-  var material = new THREE.MeshNormalMaterial();
-  var cube = new THREE.Mesh(geometry, material);
+  // var geometry = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
+  // var material = new THREE.MeshNormalMaterial();
+  // geometry.translate(0, 0, .5);
+  // var cube = new THREE.Mesh(geometry, material);
+
+  // var cube = new THREE.Mesh(geometry, material);
+  cube = model;
   cube.position.set(
     Math.cos(angle) * Math.random() * BOX_DISTANCE,
     camera.position.y + 1 - ((Math.random() - .5) * BOX_YRANGE),
     // camera.position.y + 2,
     Math.sin(angle) * Math.random() * BOX_DISTANCE
   );
+  // cube.translate(0, 0, .1);
   cube.rotation.x = Math.random() * 2 * Math.PI;
   cube.rotation.y = Math.random() * 2 * Math.PI;
   return cube;

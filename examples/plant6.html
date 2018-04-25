@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<!-- saved from url=(0050)https://lkd.neocities.org/3xr/examples/plant6.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>three.ar.js - Boilerplate</title>
+
+  <meta name="viewport" content="width=device-width, user-scalable=no,
+  minimum-scale=1.0, maximum-scale=1.0">
+  <style>
+    body {
+      font-family: monospace;
+      margin: 0;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100vh;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #info {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      transform: translate(-50%, 0);
+      margin: 1em;
+      z-index: 10;
+      display: block;
+      line-height: 2em;
+      text-align: center;
+    }
+    #info * {
+      color: #fff;
+    }
+    .title {
+      background-color: rgba(40, 40, 40, 0.4);
+      padding: 0.4em 0.6em;
+      border-radius: 0.1em;
+    }
+    .links {
+      background-color: rgba(40, 40, 40, 0.6);
+      padding: 0.4em 0.6em;
+      border-radius: 0.1em;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+<div id="info">
+
+    <!-- <span id = "ypos">default</span> -->
+</div>
+<script src="./lib/three.js"></script>
+<script src="./lib/VRControls.js"></script>
+<script src="./lib/OBJLoader.js"></script>
+<script src="./lib/MTLLoader.js"></script>
+<script src="./lib/three.ar.js"></script>
+<script>
+
+var vrDisplay, vrControls, arView;
+var canvas, camera, scene, renderer;
+var BOX_DISTANCE = 3.5;
+var BOX_SIZE = 0.1;
+var BOX_QUANTITY = 150;
+var BOX_YRANGE = 2;
+var boxesAdded = false;
+var boxes = [];
+var OBJ_PATH = './assets/cherry_blossom_v2.obj';
+var MTL_PATH = './assets/cherry_blossom_v2.mtl';
+
+var OBJ_PATHFF = './assets/ArcticFox_Posed.obj';
+var MTL_PATHFF = './assets/ArcticFox_Posed.mtl';
+
+
+var OBJ_PATH2 = './assets/pedal_v2.obj';
+var MTL_PATH2 = './assets/pedal_v2.mtl';
+
+var SCALE = 0.012;
+var directionalLight;
+// var bloss;
+// var petal;
+var flowerOptions = [];
+var flowers = [];
+// var petals = [];
+// var flowersAdded = false;
+var flowersAdded = false;
+var modelsLoaded = false;
+
+var scaledBig;
+/**
+ * Use the `getARDisplay()` utility to leverage the WebVR API
+ * to see if there are any AR-capable WebVR VRDisplays. Returns
+ * a valid display if found. Otherwise, display the unsupported
+ * browser message.
+ */
+THREE.ARUtils.getARDisplay().then(function (display) {
+  if (display) {
+    vrDisplay = display;
+    init();
+  } else {
+    THREE.ARUtils.displayUnsupportedMessage();
+  }
+});
+
+function init() {
+  // Setup the three.js rendering environment
+  renderer = new THREE.WebGLRenderer({ alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.autoClear = false;
+  canvas = renderer.domElement;
+  document.body.appendChild(canvas);
+  scene = new THREE.Scene();
+
+  // Creating the ARView, which is the object that handles
+  // the rendering of the camera stream behind the three.js
+  // scene
+  arView = new THREE.ARView(vrDisplay, renderer);
+
+  // The ARPerspectiveCamera is very similar to THREE.PerspectiveCamera,
+  // except when using an AR-capable browser, the camera uses
+  // the projection matrix provided from the device, so that the
+  // perspective camera's depth planes and field of view matches
+  // the physical camera on the device.
+  camera = new THREE.ARPerspectiveCamera(
+    vrDisplay,
+    60,
+    window.innerWidth / window.innerHeight,
+    vrDisplay.depthNear,
+    vrDisplay.depthFar
+  );
+
+  // VRControls is a utility from three.js that applies the device's
+  // orientation/position to the perspective camera, keeping our
+  // real world and virtual world in sync.
+  vrControls = new THREE.VRControls(camera);
+
+  // Bind our event handlers
+  window.addEventListener('resize', onWindowResize, false);
+  canvas.addEventListener('touchstart', onClick, false);
+
+
+
+  THREE.ARUtils.loadModel({
+    objPath: OBJ_PATH,
+    mtlPath: MTL_PATH,
+    OBJLoader: undefined, // uses window.THREE.OBJLoader by default
+    MTLLoader: undefined, // uses window.THREE.MTLLoader by default
+  }).then(function(group) {
+    model = group;
+    model.scale.set(SCALE, SCALE, SCALE);
+    // Place the model very far to initialize
+    model.position.set(10000, 10000, 10000);
+
+    // bloss = model;
+    flowerOptions[0] = model;
+  });
+
+
+   THREE.ARUtils.loadModel({
+    objPath: OBJ_PATH2,
+    mtlPath: MTL_PATH2,
+    OBJLoader: undefined, // uses window.THREE.OBJLoader by default
+    MTLLoader: undefined, // uses window.THREE.MTLLoader by default
+  }).then(function(group) {
+    model = group;
+    model.scale.set(SCALE * .6, SCALE * .6, SCALE * .6);
+    // Place the model very far to initialize
+    model.position.set(10000, 10000, 10000);
+
+    // petal= model2;
+    flowerOptions[1] = model;
+    modelsLoaded = true;
+  });
+
+ //  THREE.ARUtils.loadModel({
+ //   objPath: OBJ_PATHFF,
+ //   mtlPath: MTL_PATHFF,
+ //   OBJLoader: undefined, // uses window.THREE.OBJLoader by default
+ //   MTLLoader: undefined, // uses window.THREE.MTLLoader by default
+ // }).then(function(group) {
+ //   model = group;
+ //   model.scale.set(SCALE * 10, SCALE * 10, SCALE * 10);
+ //   // Place the model very far to initialize
+ //   model.position.set(10000, 10000, 10000);
+ //
+ //   // petal= model2;
+ //   scaledBig = model;
+ //   // modelsLoaded = true;
+ //   modelsLoaded = true;
+ // });
+
+
+  //light
+  directionalLight = new THREE.DirectionalLight();
+  // @TODO in the future, use AR light estimation
+  directionalLight.intensity = 0.3;
+  directionalLight.position.set(10, 15, 10);
+  // We want this light to cast shadow
+  directionalLight.castShadow = true;
+  light = new THREE.AmbientLight();
+  scene.add(light);
+  scene.add(directionalLight);
+
+  // Kick off the render loop!
+  update();
+}
+
+/**
+ * The render loop, called once per frame. Handles updating
+ * our scene and rendering.
+ */
+
+
+function update() {
+  // Clears color from the frame before rendering the camera (arView) or scene.
+  renderer.clearColor();
+
+  // Render the device's camera stream on screen first of all.
+  // It allows to get the right pose synchronized with the right frame.
+  arView.render();
+
+  // Update our camera projection matrix in the event that
+  // the near or far planes have updated
+  camera.updateProjectionMatrix();
+
+  // Update our perspective camera's positioning
+  vrControls.update();
+
+
+  // If we have not added boxes yet, and we have positional
+  // information applied to our camera (it can take a few seconds),
+  // and the camera's Y position is not undefined or 0, create boxes
+  if (modelsLoaded) {
+    if (!flowersAdded) {
+      for (var i = 0; i < 300; i++){
+       loadFlower();
+      }
+      flowersAdded = true;
+    }
+  }
+  //   // addBoxes();
+  //   for (var i = 0; i <= 100; i++){
+  //     loadFlower();
+  //   }
+  //   flowersAdded = true;
+  // }
+
+  requestAnimationFrame( animate );
+  // Render our three.js virtual scene
+  renderer.clearDepth();
+  renderer.render(scene, camera);
+
+  // Kick off the requestAnimationFrame to call this function
+  // when a new VRDisplay frame is rendered
+  //
+  // document.getElementById('ypos').innerHTML = camera.position.y;
+  vrDisplay.requestAnimationFrame(update);
+}
+
+
+
+
+var animate = function () {
+	// requestAnimationFrame( animate );
+  var floor = camera.position.y - 2;
+
+  // for(var i = 0; i < boxes.length; i++) {
+  //   var e = boxes[i];
+  //   e.rotation.x +=.01;
+  //   e.rotation.y +=.01;
+  //   e.position.y -=.01;
+  //   if (e.position.y < floor) {
+  //     boxes.splice(i, 1);
+  //     scene.remove(e);
+  //     var c = addSingleBox();
+  //     boxes.splice(i, 0, c);
+  //     scene.add(c);
+        //   }
+  // }
+
+  bfresh();
+  bcheck();
+
+};
+
+
+/**
+ * On window resize, update the perspective camera's aspect ratio,
+ * and call `updateProjectionMatrix` so that we can get the latest
+ * projection matrix provided from the device
+ */
+function onWindowResize () {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+/**
+ * Once we have position information applied to our camera,
+ * create some boxes at the same height as the camera
+ */
+
+
+
+// function addBoxes() {
+//   // Create some cubes around the origin point
+//   for (var i = 0; i < BOX_QUANTITY; i++) {
+//     var c = addSingleBox();
+//     boxes.push(c);
+//     scene.add(c);
+//   }
+
+//   // Flip this switch so that we only perform this once
+//   boxesAdded = true;
+// }
+
+// function addSingleBox () {
+//   var angle = Math.random() * Math.PI * 2;
+//   var geometry = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
+//   var material = new THREE.MeshNormalMaterial();
+//   var cube = new THREE.Mesh(geometry, material);
+//   cube.position.set(
+//     Math.cos(angle) * Math.random() * BOX_DISTANCE,
+//     camera.position.y + 1 - ((Math.random() - .5) * BOX_YRANGE),
+//     // camera.position.y + 2,
+//     Math.sin(angle) * Math.random() * BOX_DISTANCE
+//   );
+//   cube.rotation.x = Math.random() * 2 * Math.PI;
+//   cube.rotation.y = Math.random() * 2 * Math.PI;
+//   return cube;
+// }
+
+
+
+
+
+function onClick() {
+  if (flowers.length < 400) {
+    for (var i = 0; i < 10; i++) {
+      // loadFlower();
+      loadFlower();
+    }
+    // alert('hi');
+  }
+  // alert('hi');
+}
+
+
+function bfresh(){
+  for (var i = 0; i < flowers.length; i++){
+    var f = flowers[i];
+    f.position.y -=.01;
+    f.rotation.y +=.01;
+    f.position.z +=.001;
+    f.rotation.z +=.005;
+  }
+}
+
+
+function bcheck(){
+  var floor = camera.position.y - 2;
+  for (var i = 0; i < flowers.length; i++){
+    var f = flowers[i];
+    if (f.position.y < floor) {
+      scene.remove(f);
+      flowers.splice(i, 1);
+      loadFlower();
+    }
+
+
+  // var f = flowers[i];
+  // f.position.y -=.01;
+  //   f.rotation.y +=.01;
+  //   f.position.y -=.01;
+
+  }
+
+
+}
+
+function loadFlower() {
+  // var model = bloss.clone();
+  // var t = balancer();
+  var model = flowerOptions[balancer()].clone();
+  // var model = flowerOptions[0].clone();
+  //random and load from flowerOptions
+
+  var angle = Math.random() * Math.PI * 2;
+  model.position.set(
+    Math.cos(angle) * Math.random() * BOX_DISTANCE,
+    camera.position.y + 1 - ((Math.random() - .5) * BOX_YRANGE),
+    Math.sin(angle) * Math.random() * BOX_DISTANCE
+  );
+  model.rotation.x = Math.random() * 2 * Math.PI;
+  model.rotation.y = Math.random() * 2 * Math.PI;
+
+  scene.add(model);
+  flowers.push(model);
+}
+
+// function loadFlower2() {
+//   // var model = bloss.clone();
+//   // var t = balancer();
+//   // var model = scaledBig.clone();
+//   var model = flowerOptions[0].clone();
+//   //random and load from flowerOptions
+//
+//   var angle = Math.random() * Math.PI * 2;
+//   // model.position.set(
+//   //   Math.cos(angle) * Math.random() * BOX_DISTANCE,
+//   //   camera.position.y + 1 - ((Math.random() - .5) * BOX_YRANGE),
+//   //   Math.sin(angle) * Math.random() * BOX_DISTANCE
+//   // );
+//
+//   model.position.set(
+//     .5*(Math.random()-.5),
+//     camera.position.y + 1 - ((Math.random() - .5) * BOX_YRANGE),
+//     -2
+//   );
+//
+//   // model.position.set( camera.x, camera.y, camera.z );
+//   model.rotation.x = Math.random() * 2 * Math.PI;
+//   model.rotation.y = Math.random() * 2 * Math.PI;
+//
+//   scene.add(model);
+//   flowers.push(model);
+// }
+
+
+function balancer() {
+  var r = Math.random();
+  if (r>.2) {
+    return 1;
+  } else {
+    return 0;
+  }
+  // return binary;
+}
+
+</script>
+<!-- <div id="webgl-error-message" style="font-family: monospace; font-size: 13px; font-weight: normal; text-align: center; background: rgb(255, 255, 255); border: 1px solid black; color: rgb(0, 0, 0); padding: 1.5em; width: 400px; margin: 5em auto 0px;">
+  This augmented reality experience requires
+  WebARonARCore or WebARonARKit, experimental browsers from Google
+  for Android and iOS. Learn more at the
+  <a href="https://developers.google.com/ar/develop/web/getting-started">Google Developers site</a>.
+</div> -->
+
+
+</body>
+</html>

@@ -201,8 +201,14 @@ function init() {
     model.scale.set(SCALE, SCALE, SCALE);
 
     // Place the model very far to initialize
-    model.position.set(10000, 10000, 10000);
+    // model.position.set(10000, 10000, 10000);
+  for( var i = 0; i < 5; i++ ) {
+    model.position.set(2*(Math.random()-.5), 2*(Math.random()-.5), 2*(Math.random()-.5));
     scene.add(model);
+  }
+
+    // model.position.set(0, 0, 0);
+    // scene.add(model);
   });
 
   // Bind our event handlers
